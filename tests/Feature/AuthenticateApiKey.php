@@ -2,6 +2,7 @@
 
 namespace Givebutter\Tests\Feature;
 
+use Givebutter\LaravelKeyable\Exceptions\ForbidenRequestParamException;
 use Givebutter\Tests\TestCase;
 use Givebutter\Tests\Support\Account;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,17 @@ class AuthenticateApiKey extends TestCase
         $this->withHeaders([
             'Authorization' => 'Bearer ' . $account->createApiKey()->plainTextApiKey,
         ])->get("/api/posts")->assertOk();
+    }
+    /** @test */
+    public function request_with_api_key_responds_ok_in_param_mode()
+    {
+        Route::get("/api/posts", function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey:parameter']);
+
+        $account = Account::create();
+
+        $this->get("/api/posts?api_key=" . $account->createApiKey()->plainTextApiKey)->assertOk();
     }
 
     /** @test */
@@ -80,5 +92,87 @@ class AuthenticateApiKey extends TestCase
         })->middleware(['api', 'auth.apikey']);
 
         $this->get("/api/posts")->assertUnauthorized();
+    }
+
+    /**
+     * @test
+     * @dataProvider forbiddenRequestParams
+     */
+    public function throw_exception_if_unauthorized_get_request_has_forbidden_request_query_params(string $queryParam): void
+    {
+        Route::get('/api/posts', function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey']);
+
+        $this->get("/api/posts?{$queryParam}=value")
+            ->assertBadRequest()
+            ->assertContent("Request param '{$queryParam}' is not allowed.");
+    }
+
+    /**
+     * @test
+     * @dataProvider forbiddenRequestParams
+     */
+    public function throw_exception_if_unauthorized_post_request_has_forbidden_request_body_params(string $bodyParam): void
+    {
+        Route::post('/api/posts', function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey']);
+
+        $this->post('/api/posts', [$bodyParam => 'value'])
+            ->assertBadRequest()
+            ->assertContent("Request param '{$bodyParam}' is not allowed.");
+    }
+
+    /**
+     * @test
+     * @dataProvider forbiddenRequestParams
+     */
+    public function throw_exception_if_unauthorized_json_get_request_has_forbidden_request_query_params(string $queryParam): void
+    {
+        Route::get('/api/posts', function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey']);
+
+        $this->getJson("/api/posts?{$queryParam}=value")
+            ->assertBadRequest()
+            ->assertJson(['message' => "Request param '{$queryParam}' is not allowed."]);
+    }
+
+    /**
+     * @test
+     * @dataProvider forbiddenRequestParams
+     */
+    public function throw_exception_if_unauthorized_json_post_request_has_forbidden_request_body_params(string $bodyParam): void
+    {
+        Route::post('/api/posts', function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey']);
+
+        $this->postJson('/api/posts', [$bodyParam => 'value'])
+            ->assertBadRequest()
+            ->assertJson(['message' => "Request param '{$bodyParam}' is not allowed."]);
+    }
+
+    public function forbiddenRequestParams(): array
+    {
+        return [
+            ['keyable'],
+            ['apiKey'],
+        ];
+    }
+
+    /** @test */
+    public function request_without_api_key_properly_set_responds_unauthorized()
+    {
+        Route::get("/api/posts", function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey:parameter']);
+
+        $account = Account::create();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer ' . $account->createApiKey()->plainTextApiKey,
+        ])->get("/api/posts")->assertUnauthorized();
     }
 }
