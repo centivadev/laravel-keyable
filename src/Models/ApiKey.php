@@ -22,6 +22,7 @@ class ApiKey extends Model
         'name',
         'last_used_at',
         'expires_at',
+        'last_key_chars',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class ApiKey extends Model
             if (is_null($apiKey->key)) {
                 $apiKey->plainTextApiKey = self::generate();
                 $apiKey->key = hash('sha256', $apiKey->plainTextApiKey);
+                $apiKey->last_key_chars = substr($apiKey->plainTextApiKey, -5);
             }
         });
     }
@@ -57,7 +59,7 @@ class ApiKey extends Model
     public static function generate()
     {
         do {
-            $key = Str::random(40);
+            $key = Str::random(45);
         } while (self::keyExists($key));
 
         return $key;
