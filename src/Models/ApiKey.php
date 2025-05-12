@@ -21,10 +21,12 @@ class ApiKey extends Model
         'keyable_type',
         'name',
         'last_used_at',
+        'expires_at',
     ];
 
     protected $casts = [
         'last_used_at' => 'datetime',
+        'expires_at' => 'datetime',
     ];
 
     public static function boot()
@@ -70,7 +72,9 @@ class ApiKey extends Model
      */
     public static function getByKey($key)
     {
-        return self::ofKey($key)->first();
+        return self::ofKey($key)
+            ->validKey()
+            ->first();
     }
 
     /**
@@ -132,5 +136,13 @@ class ApiKey extends Model
 
         return $query->where('id', $id)
             ->where('key', hash('sha256', $key));
+    }
+
+    public function scopeValidKey(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->whereNull('expires_at')
+                  ->orWhere('expires_at', '>', now());
+        });
     }
 }
