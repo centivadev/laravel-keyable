@@ -17,7 +17,9 @@ trait Keyable
         $planTextApiKey = ApiKey::generate();
         if (isset($attributes['expires_at'])) {
             $dateTime = \DateTime::createFromFormat('Y-m-d H:i', $attributes['expires_at']) ?: \DateTime::createFromFormat('Y-m-d', $attributes['expires_at']);
-
+            if ($dateTime === false) {
+                throw new \InvalidArgumentException('Invalid date format. Expected format: Y-m-d H:i or Y-m-d');
+            }
             $attributes['expires_at'] = (
                 $dateTime
                     ? $dateTime->format('Y-m-d H:i:s')
@@ -29,10 +31,10 @@ trait Keyable
             return $this->apiKeys()->create([
                 'key' => hash('sha256', $planTextApiKey),
                 'name' => $attributes['name'] ?? null,
-                'expires_at' => $attributes['expires_at'],
+                'expires_at' => $attributes['expires_at'] ?? null,
             ]);
         });
 
-        return new NewApiKey($apiKey, "{$apiKey->getKey()}|{$planTextApiKey}|ExpiredAt:{$apiKey->expires_at}");
+        return new NewApiKey($apiKey, "{$apiKey->getKey()}|{$planTextApiKey}");
     }
 }

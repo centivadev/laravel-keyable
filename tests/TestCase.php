@@ -58,6 +58,8 @@ class TestCase extends OrchestraTestCase
     {
         include_once __DIR__ . '/../database/migrations/2019_04_09_225232_create_api_keys_table.php';
         (new \CreateApiKeysTable())->up();
+        include_once __DIR__ . '/../database/migrations/2025_05_09_160000_alter_api_keys_table_add_expires_at.php';
+        (new \AlterApiKeysTableAddExpiresAt())->up();
     }
 
     protected function prepareDatabaseForHasCustomFieldsModel()

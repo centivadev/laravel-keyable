@@ -5,6 +5,7 @@ namespace Givebutter\Tests\Feature;
 use Givebutter\LaravelKeyable\Exceptions\ForbidenRequestParamException;
 use Givebutter\Tests\TestCase;
 use Givebutter\Tests\Support\Account;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 
 class AuthenticateApiKey extends TestCase
@@ -22,6 +23,7 @@ class AuthenticateApiKey extends TestCase
             'Authorization' => 'Bearer ' . $account->createApiKey()->plainTextApiKey,
         ])->get("/api/posts")->assertOk();
     }
+
     /** @test */
     public function request_with_api_key_responds_ok_in_param_mode()
     {
@@ -174,5 +176,37 @@ class AuthenticateApiKey extends TestCase
         $this->withHeaders([
             'Authorization' => 'Bearer ' . $account->createApiKey()->plainTextApiKey,
         ])->get("/api/posts")->assertUnauthorized();
+    }
+
+    /** @test */
+    public function request_with_expired_api_key_responds_unauthorized()
+    {
+        Route::get("/api/posts", function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey']);
+
+        $account = Account::create();
+
+        $dateTime = Carbon::now()->subDay()->format('Y-m-d H:i');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer ' . $account->createApiKey(['expires_at' => $dateTime])->plainTextApiKey,
+        ])->get("/api/posts")->assertUnauthorized();
+    }
+
+    /** @test */
+    public function request_with_expired_at_set_api_key_responds_ok()
+    {
+        Route::get("/api/posts", function () {
+            return response('All good', 200);
+        })->middleware(['api', 'auth.apikey']);
+
+        $account = Account::create();
+
+        $dateTime = Carbon::now()->addDay()->format('Y-m-d H:i');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer ' . $account->createApiKey(['expires_at' => $dateTime])->plainTextApiKey,
+        ])->get("/api/posts")->assertOk();
     }
 }
